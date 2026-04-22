@@ -2,7 +2,7 @@
 FROM golang:1.21-alpine AS build
 WORKDIR /app
 COPY go.mod go.sum ./
-RUN go clean -modcache && go mod tidy && go mod download
+RUN go mod download
 COPY src/ ./src/
 RUN CGO_ENABLED=0 GOOS=linux go build -o notification-service ./src/main.go
 

@@ -1,12 +1,15 @@
-# Build stage
 FROM golang:1.21-alpine AS build
 WORKDIR /app
+
+ENV GO111MODULE=on
+
 COPY go.mod go.sum ./
 RUN go mod download
+
 COPY src/ ./src/
+
 RUN CGO_ENABLED=0 GOOS=linux go build -o notification-service ./src/main.go
 
-# Runtime stage
 FROM alpine:3.18
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app

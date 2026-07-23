@@ -1,0 +1,313 @@
+# -----------------------------
+# REDIS
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7
+        ports:
+        - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: roboshop
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+  type: ClusterIP
+
+---
+# -----------------------------
+# RABBITMQ
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: "roboshop"
+        - name: RABBITMQ_DEFAULT_PASS
+          value: "roboshop123"
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: roboshop
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+  - name: amqp
+    port: 5672
+    targetPort: 5672
+  - name: management
+    port: 15672
+    targetPort: 15672
+  type: ClusterIP
+
+---
+# -----------------------------
+# MYSQL
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: joindevops/mysql:4.0.0
+        args:
+        - "--innodb_lock_wait_timeout=120"
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "RoboShop@1"
+        ports:
+        - containerPort: 3306
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: roboshop
+spec:
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+  type: ClusterIP
+
+---
+# -----------------------------
+# USER
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user
+  template:
+    metadata:
+      labels:
+        app: user
+    spec:
+      containers:
+      - name: user
+        image: joindevops/user:4.0.0
+        env:
+        - name: MONGO
+          value: "true"
+        - name: REDIS_URL
+          value: "redis://redis:6379"
+        - name: MONGO_URL
+          value: "mongodb://mongodb:27017/users"
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user
+  namespace: roboshop
+spec:
+  selector:
+    app: user
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
+
+---
+# -----------------------------
+# CART
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart
+  template:
+    metadata:
+      labels:
+        app: cart
+    spec:
+      containers:
+      - name: cart
+        image: joindevops/cart:4.0.0
+        env:
+        - name: REDIS_HOST
+          value: redis
+        - name: CATALOGUE_HOST
+          value: catalogue
+        - name: CATALOGUE_PORT
+          value: "8080"
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart
+  namespace: roboshop
+spec:
+  selector:
+    app: cart
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
+
+---
+# -----------------------------
+# SHIPPING
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipping
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipping
+  template:
+    metadata:
+      labels:
+        app: shipping
+    spec:
+      containers:
+      - name: shipping
+        image: joindevops/shipping:4.0.0
+        env:
+        - name: CART_ENDPOINT
+          value: "cart:8080"
+        - name: DB_HOST
+          value: "mysql"
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipping
+  namespace: roboshop
+spec:
+  selector:
+    app: shipping
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
+
+---
+# -----------------------------
+# PAYMENT
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment
+  template:
+    metadata:
+      labels:
+        app: payment
+    spec:
+      containers:
+      - name: payment
+        image: joindevops/payment:4.0.0
+        env:
+        - name: CART_HOST
+          value: cart
+        - name: CART_PORT
+          value: "8080"
+        - name: USER_HOST
+          value: user
+        - name: USER_PORT
+          value: "8080"
+        - name: AMQP_HOST
+          value: rabbitmq
+        - name: AMQP_USER
+          value: roboshop
+        - name: AMQP_PASS
+          value: roboshop123
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment
+  namespace: roboshop
+spec:
+  selector:
+    app: payment
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
